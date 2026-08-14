@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b63ce">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg">
+<title>VeStopě – Rolbař</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#142033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh}.app{max-width:520px;min-height:100vh;margin:auto;padding:20px 18px 28px;display:flex;flex-direction:column}header{display:flex;justify-content:space-between;align-items:center;padding:8px 2px 22px}.brand{font-weight:800;font-size:20px}.pill{font-size:12px;border-radius:999px;padding:7px 10px;background:#e8eef6}.online{background:#e6f7ec;color:#137333}.offline{background:#fff1e8;color:#a54800}main{flex:1;display:flex;flex-direction:column}.card{background:white;border:1px solid #e4eaf2;border-radius:22px;padding:22px;box-shadow:0 8px 30px rgba(25,50,80,.06)}.eyebrow{font-size:13px;color:#6b7788;margin-bottom:8px}h1{font-size:32px;line-height:1.05;margin:0 0 12px;letter-spacing:-.04em}p{color:#657185;line-height:1.5;margin:0}.start{width:190px;height:190px;border-radius:50%;border:0;background:#0b63ce;color:white;font-size:24px;font-weight:800;margin:42px auto 28px;box-shadow:0 14px 35px rgba(11,99,206,.25);cursor:pointer;display:block}.start.running{background:#c63b2e}.status{text-align:center;font-size:14px;color:#687587}.user{margin-top:auto;padding-top:20px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#657185}button.secondary{border:1px solid #d9e1eb;background:white;color:#243246;border-radius:12px;padding:10px 12px;cursor:pointer}.login{margin-top:30px}label{display:block;font-size:13px;font-weight:700;margin:14px 0 6px}input{width:100%;padding:13px 14px;border:1px solid #d8e0ea;border-radius:12px;font-size:16px}.primary{width:100%;margin-top:18px;border:0;background:#0b63ce;color:white;padding:14px;border-radius:12px;font-size:16px;font-weight:800}.error{margin-top:12px;color:#b3261e;font-size:13px}.small{font-size:12px;color:#7a8798;margin-top:10px}
+</style>
+</head>
+<body><div class="app"><header><div class="brand">VeStopě.cz</div><div id="connection" class="pill">Kontroluji…</div></header><main id="app"></main></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://wlxrqqtvpqumvbbdfpuv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_aXH1aT3OZN2p0mMzfWLt0w_YGFBFaQl";
+const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const app=document.getElementById("app"),connection=document.getElementById("connection");
+function updateConnection(){const online=navigator.onLine;connection.textContent=online?"ONLINE":"OFFLINE";connection.className="pill "+(online?"online":"offline")}
+addEventListener("online",updateConnection);addEventListener("offline",updateConnection);updateConnection();
+function loginView(message=""){app.innerHTML=`<div class="card login"><div class="eyebrow">TESTOVACÍ PROSTŘEDÍ</div><h1>Rolbař</h1><p>Přihlášení se na tomto zařízení zapamatuje.</p><form id="loginForm"><label>E-mail</label><input id="email" type="email" autocomplete="username" required><label>Heslo</label><input id="password" type="password" autocomplete="current-password" required><button class="primary">Přihlásit</button>${message?`<div class="error">${message}</div>`:""}</form><div class="small">Fáze A: přihlášení, persistentní relace a základ aplikace.</div></div>`;document.getElementById("loginForm").addEventListener("submit",async e=>{e.preventDefault();const b=e.target.querySelector("button");b.disabled=true;b.textContent="Přihlašuji…";const{error}=await client.auth.signInWithPassword({email:document.getElementById("email").value.trim(),password:document.getElementById("password").value});if(error){loginView(error.message);return}homeView()})}
+async function homeView(){const{data}=await client.auth.getUser(),user=data?.user;app.innerHTML=`<div class="card"><div class="eyebrow">TESTOVACÍ VERZE</div><h1>Připraveno?</h1><p>Fáze A: základ aplikace, přihlášení, zapamatování relace a připravený offline režim.</p><button id="start" class="start">START</button><div id="startStatus" class="status">Jízda zatím není spuštěná.</div></div><div class="user"><span>${escapeHtml(user?.email||"Rolbař")}</span><button id="logout" class="secondary">Odhlásit</button></div>`;document.getElementById("start").addEventListener("click",startDraft);document.getElementById("logout").addEventListener("click",async()=>{await client.auth.signOut();loginView()})}
+function startDraft(){const draft={id:crypto.randomUUID(),startedAt:new Date().toISOString(),synced:false};localStorage.setItem("vestope:groomer:phaseA:draft",JSON.stringify(draft));const b=document.getElementById("start");b.classList.add("running");b.textContent="BĚŽÍ";document.getElementById("startStatus").textContent="Testovací jízda je uložena lokálně v zařízení."}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+(async()=>{if("serviceWorker"in navigator){try{await navigator.serviceWorker.register("./sw.js")}catch(e){console.warn("SW",e)}}const{data}=await client.auth.getSession();if(data?.session)homeView();else loginView()})();
+</script></body></html>
