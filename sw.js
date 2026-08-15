@@ -1,24 +1,23 @@
-const CACHE="vestope-groomer-phase-a-v8";
+const CACHE="vestope-groomer-phase-a-v9";
 const ASSETS=["./","./index.html","./manifest.webmanifest","./logo_vestope.cz.png","./vestope-groomer-background.webp","./groomer.svg"];
 const UI_STYLE=`<style>
-/* Final section graphics: one consistent light-blue tile size */
 .quality-title{display:flex!important;align-items:center;gap:12px!important}
 .quality-title:before{content:""!important;width:52px!important;height:52px!important;flex:0 0 52px!important;border-radius:14px!important;background:#eaf3ff!important;background-position:center!important;background-repeat:no-repeat!important;background-size:34px 34px!important;box-shadow:0 6px 14px rgba(62,111,181,.14)!important}
-.quality-track:before{background-image:url("./groomer.svg")!important;background-size:38px 30px!important}
-.snow-section-title,.track-section-title{display:flex!important;align-items:center!important;gap:12px!important}
-.snow-section-title:before,.track-section-title:before{content:"";width:52px;height:52px;flex:0 0 52px;border-radius:14px;background:#eaf3ff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 14px rgba(62,111,181,.14)}
-.snow-section-title:before{content:"❄";font-size:35px;line-height:1;color:#0b63ce;background:#eaf3ff}
-.track-section-title:before{background-image:url("./groomer.svg");background-position:center;background-repeat:no-repeat;background-size:38px 30px}
-/* Keep the supplied skier icon, only recolor it to VeStope blue. */
+.quality-title.quality-track:before{background-image:url("./groomer.svg")!important;background-size:40px 30px!important}
+.sectionHeader.snow-section-title,.sectionHeader.track-section-title{display:flex!important;align-items:center!important;gap:12px!important}
+.sectionHeader.snow-section-title:before,.sectionHeader.track-section-title:before{content:"";width:52px;height:52px;flex:0 0 52px;border-radius:14px;background:#eaf3ff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 14px rgba(62,111,181,.14)}
+.sectionHeader.snow-section-title:before{content:"❄";font-size:35px;line-height:1;color:#0b63ce}
+.sectionHeader.track-section-title:before{background-image:url("./groomer.svg");background-position:center;background-repeat:no-repeat;background-size:40px 30px}
 .trackTypeIcon{width:52px!important;height:52px!important;flex:0 0 52px!important;border-radius:14px!important;background:#eaf3ff!important;box-shadow:0 6px 14px rgba(62,111,181,.14)!important}
 .trackTypeIcon svg{width:38px!important;height:38px!important;filter:brightness(0) saturate(100%) invert(29%) sepia(96%) saturate(2257%) hue-rotate(201deg) brightness(88%) contrast(96%)!important}
-@media(max-width:600px){.quality-title:before,.snow-section-title:before,.track-section-title:before,.trackTypeIcon{width:52px!important;height:52px!important;flex-basis:52px!important}.quality-title,.snow-section-title,.track-section-title{gap:10px!important}}
+@media(max-width:600px){.quality-title:before,.sectionHeader.snow-section-title:before,.sectionHeader.track-section-title:before,.trackTypeIcon{width:52px!important;height:52px!important;flex-basis:52px!important}.quality-title,.sectionHeader.snow-section-title,.sectionHeader.track-section-title{gap:10px!important}}
 </style>`;
 const UI_SCRIPT=`<script>
 (()=>{
   const markSections=()=>{
     document.querySelectorAll("h3,.quality-title,.sectionHeader").forEach(el=>{
       const t=(el.textContent||"").trim();
+      if(t.includes("Jaká je podle tebe stopa?")) el.classList.add("quality-track");
       if(t.includes("Sněhové podmínky")) el.classList.add("snow-section-title");
       if(t.includes("Druh stopy")) el.classList.add("track-section-title");
     });
