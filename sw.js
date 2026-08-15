@@ -1,4 +1,4 @@
-const CACHE="vestope-groomer-phase-a-v18";
+const CACHE="vestope-groomer-phase-a-v19";
 const ASSETS=[
   "./",
   "./index.html",
@@ -6,7 +6,8 @@ const ASSETS=[
   "./logo_vestope.cz.png",
   "./vestope-groomer-background.webp",
   "./groomer.svg",
-  "./ride-enhancements.js"
+  "./ride-enhancements.js",
+  "./gps-guard.js"
 ];
 
 const injectEnhancements=async response=>{
@@ -14,9 +15,11 @@ const injectEnhancements=async response=>{
   const headers=new Headers(response.headers);
   headers.delete("content-length");
   let html=await response.text();
-  const script='<script src="./ride-enhancements.js?v=18"></script>';
+  const scripts='<script src="./ride-enhancements.js?v=19"></script><script src="./gps-guard.js?v=19"></script>';
   if(!html.includes("ride-enhancements.js")){
-    html=html.includes("</body>")?html.replace("</body>",script+"</body>"):html+script;
+    html=html.includes("</body>")?html.replace("</body>",scripts+"</body>"):html+scripts;
+  }else if(!html.includes("gps-guard.js")){
+    html=html.includes("</body>")?html.replace("</body>",'<script src="./gps-guard.js?v=19"></script></body>'):html+scripts;
   }
   return new Response(html,{status:response.status,statusText:response.statusText,headers});
 };
