@@ -1,0 +1,59 @@
+name: Refine location UI
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  refine-location-ui:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update location UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          marker = '.gpsok{color:#137333;font-weight:800}'
+          styles = '''.gpsok{color:#137333;font-weight:800}.gps-state{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:800;color:#163c65}.gps-icon{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex:0 0 32px}.gps-icon.ok{background:#20b85a;color:#fff;box-shadow:0 4px 12px rgba(32,184,90,.22)}.gps-icon.away{background:#fff4dc;color:#d48a00;border:1px solid #f1d89b}.gps-message{margin-top:5px;font-size:13px;line-height:1.4;color:#687b91}.gps-point{margin-top:4px;font-size:15px;font-weight:800;color:#163c65}'''
+          if marker in s and 'gps-state' not in s:
+              s = s.replace(marker, styles, 1)
+
+          pattern = r'function renderLocation\(el,position,nearest\)\{.*?\}\s*async function detectNearestStart'
+          replacement = '''function renderLocation(el,position,nearest){
+            if(nearest){
+              el.innerHTML=`<div class="gps-state"><span class="gps-icon ok">✓</span><span>Jsi u výchozího bodu</span></div><div class="gps-point">${escapeHtml(nearest.name)}</div><div class="gps-message">Tady můžeš vyrazit. Já už vím, kam tvoji jízdu zařadit.</div>`;
+            }else{
+              el.innerHTML=`<div class="gps-state"><span class="gps-icon away">!</span><span>Nejsi u známého výchozího bodu</span></div><div class="gps-message">Nevadí. Najdu nejbližší výchozí bod a tvoje data pak automaticky správně zařadím.</div>`;
+            }
+          }
+          async function detectNearestStart'''
+          s2, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('renderLocation pattern not found')
+          s = s2
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit UI change
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo 'No changes needed.'
+            exit 0
+          fi
+          git commit -m 'Upravené zobrazení výchozího bodu GPS'
+          git push
