@@ -1,4 +1,4 @@
-const CACHE="vestope-groomer-phase-a-v13";
+const CACHE="vestope-groomer-phase-a-v14";
 const ASSETS=["./","./index.html","./manifest.webmanifest","./logo_vestope.cz.png","./vestope-groomer-background.webp","./groomer.svg"];
 
 const UI_STYLE=`<style>
@@ -17,11 +17,16 @@ const UI_STYLE=`<style>
 .daily-stat-value{font-size:25px;font-weight:900;color:#163c65;line-height:1.1;font-variant-numeric:tabular-nums}
 .daily-stat-label{font-size:12px;color:#718096;font-weight:700;margin-top:5px}
 .daily-stat-icon{font-size:19px;margin-bottom:5px}
-.live-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 2px}
-.live-stat{background:#f3f8fc;border:1px solid #dce8f2;border-radius:14px;padding:10px 8px;text-align:center}
-.live-stat-value{font-size:22px;font-weight:900;color:#163c65;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap}
-.live-stat-label{font-size:11px;color:#718096;font-weight:700;margin-top:4px}
-@media(max-width:600px){.quality-title{gap:10px!important}.vestope-section-row{gap:10px!important}.vestope-section-icon,.trackTypeIcon{width:52px!important;height:52px!important;flex-basis:52px!important}.daily-stats{gap:8px}.daily-stat{padding:12px 7px}.live-stats{gap:7px}.live-stat{padding:9px 6px}.live-stat-value{font-size:20px}}
+/* Live ride stats sit directly beside the main START/JEDU/STOP button. */
+.start-row{display:grid!important;grid-template-columns:minmax(78px,1fr) auto minmax(78px,1fr)!important;align-items:center!important;gap:10px!important;width:100%!important;margin:28px auto 16px!important}
+.start-row .start{margin:0!important;grid-column:2!important;grid-row:1!important}
+.live-stats{display:contents!important}
+.live-stat{background:#f3f8fc;border:1px solid #dce8f2;border-radius:14px;padding:10px 7px;text-align:center;min-width:0}
+.live-stat:first-child{grid-column:1!important;grid-row:1!important}
+.live-stat:last-child{grid-column:3!important;grid-row:1!important}
+.live-stat-value{font-size:20px;font-weight:900;color:#163c65;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap}
+.live-stat-label{font-size:11px;color:#718096;font-weight:700;margin-top:4px;line-height:1.2}
+@media(max-width:600px){.quality-title{gap:10px!important}.vestope-section-row{gap:10px!important}.vestope-section-icon,.trackTypeIcon{width:52px!important;height:52px!important;flex-basis:52px!important}.daily-stats{gap:8px}.daily-stat{padding:12px 7px}.start-row{grid-template-columns:minmax(68px,1fr) auto minmax(68px,1fr)!important;gap:7px!important;margin-top:20px!important}.live-stat{padding:9px 5px}.live-stat-value{font-size:17px}.live-stat-label{font-size:10px}}
 </style>`;
 
 const UI_SCRIPT=`<script>
@@ -55,7 +60,6 @@ const UI_SCRIPT=`<script>
       const dLat=(b.latitude-a.latitude)*p,dLon=(b.longitude-a.longitude)*p;
       const x=Math.sin(dLat/2)**2+Math.cos(a.latitude*p)*Math.cos(b.latitude*p)*Math.sin(dLon/2)**2;
       const d=2*R*Math.asin(Math.sqrt(x));
-      /* Ignore GPS jumps over 500 m between two samples. */
       if(d<=500)total+=d;
     }
     return total/1000;
@@ -93,15 +97,29 @@ const UI_SCRIPT=`<script>
     return {km,ms,count};
   };
 
+  const ensureStartRow=()=>{
+    const button=document.getElementById('start');
+    if(!button)return null;
+    let row=button.closest('.start-row');
+    if(!row){
+      row=document.createElement('div');row.className='start-row';
+      button.parentNode.insertBefore(row,button);
+      row.appendChild(button);
+    }
+    return row;
+  };
+
   const renderLiveStats=()=>{
     const button=document.getElementById('start'),animation=document.getElementById('trackAnimation');
     const driving=!!button?.classList.contains('driving') && !!animation?.classList.contains('active');
-    let box=document.getElementById('liveStats');
+    const row=ensureStartRow();
+    if(!row)return;
+    let box=row.querySelector('#liveStats');
     if(!driving){box?.remove();return;}
     if(!box){
       box=document.createElement('div');box.id='liveStats';box.className='live-stats';
-      box.innerHTML='<div class="live-stat"><div class="live-stat-value" id="liveKm">0,0 km</div><div class="live-stat-label">Upraveno</div></div><div class="live-stat"><div class="live-stat-value" id="liveTime">00:00:00</div><div class="live-stat-label">Čas za volantem</div></div>';
-      animation?.insertAdjacentElement('afterend',box);
+      box.innerHTML='<div class="live-stat"><div class="live-stat-value" id="liveTime">00:00:00</div><div class="live-stat-label">Čas za volantem</div></div><div class="live-stat"><div class="live-stat-value" id="liveKm">0,0 km</div><div class="live-stat-label">Upraveno</div></div>';
+      row.insertBefore(box,button);
     }
     const d=liveData();if(!d)return;
     const km=document.getElementById('liveKm'),time=document.getElementById('liveTime');
@@ -113,7 +131,6 @@ const UI_SCRIPT=`<script>
     const card=document.querySelector('.thanks');if(!card)return;
     const rides=readRides(); if(!rides.length)return;
     const latest=rides[rides.length-1];
-    /* The stop moment is captured when the JEDU button is pressed, before the questionnaire opens. */
     const stoppedAt=localStorage.getItem('vestope:groomer:stoppedAt');
     if(stoppedAt){
       latest.drivingEndedAt=stoppedAt;
