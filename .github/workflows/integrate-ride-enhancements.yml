@@ -1,40 +1,19 @@
 name: Integrate ride enhancements
+
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+
 permissions:
-  contents: write
+  contents: read
+
 jobs:
-  patch:
-    if: ${{ !contains(github.event.head_commit.message, '[ride-enhancements]') }}
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply ride enhancements
+      - name: Verify ride enhancement source
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import json
-          p=Path('sw.js')
-          s=p.read_text()
-          marker='/* VESTOPE_RIDE_ENHANCEMENTS_V15 */'
-          if marker in s:
-              raise SystemExit(0)
-          extra=Path('ride-enhancements.js').read_text()
-          extra_json=json.dumps(extra, ensure_ascii=False)
-          needle='if(html.includes("</body>"))html=html.replace("</body>",UI_SCRIPT+"</body>");'
-          replacement='if(html.includes("</body>"))html=html.replace("</body>",UI_SCRIPT+"<script>"+'+extra_json+'+"</script></body>");'
-          if needle not in s:
-              raise SystemExit('needle not found')
-          s=s.replace(needle,replacement)
-          s=s.replace('const CACHE="vestope-groomer-phase-a-v13"','const CACHE="vestope-groomer-phase-a-v15"')
-          s += '\n'+marker+'\n'
-          p.write_text(s)
-          PY
-      - name: Commit integration
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add sw.js
-          git diff --cached --quiet || git commit -m "Add ride safety and photo capture [ride-enhancements]"
-          git push
+          test -s ride-enhancements.js
+          grep -q 'ride-controls' ride-enhancements.js
+          grep -q 'pauseRide' ride-enhancements.js
+          grep -q 'addRidePhoto' ride-enhancements.js
