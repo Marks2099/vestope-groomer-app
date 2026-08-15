@@ -1,23 +1,38 @@
-const CACHE="vestope-groomer-phase-a-v10";
+const CACHE="vestope-groomer-phase-a-v11";
 const ASSETS=["./","./index.html","./manifest.webmanifest","./logo_vestope.cz.png","./vestope-groomer-background.webp","./groomer.svg"];
 const UI_STYLE=`<style>
-/* Section icons – use the actual classes added by the script, regardless of the surrounding HTML element. */
-.quality-track,.snow-section-title,.track-section-title{display:flex!important;align-items:center!important;gap:12px!important}
-.quality-track:before,.snow-section-title:before,.track-section-title:before{content:""!important;width:52px!important;height:52px!important;flex:0 0 52px!important;border-radius:14px!important;background:#eaf3ff!important;background-position:center!important;background-repeat:no-repeat!important;box-shadow:0 6px 14px rgba(62,111,181,.14)!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important}
-.quality-track:before,.track-section-title:before{background-image:url("./groomer.svg")!important;background-size:40px 30px!important}
-.snow-section-title:before{content:"❄"!important;background-image:none!important;background-size:auto!important;font-size:35px!important;line-height:1!important;color:#0b63ce!important;font-family:system-ui,sans-serif!important}
-.trackTypeIcon{width:52px!important;height:52px!important;flex:0 0 52px!important;border-radius:14px!important;background:#eaf3ff!important;box-shadow:0 6px 14px rgba(62,111,181,.14)!important}
-.trackTypeIcon svg{width:38px!important;height:38px!important;filter:brightness(0) saturate(100%) invert(29%) sepia(96%) saturate(2257%) hue-rotate(201deg) brightness(88%) contrast(96%)!important}
-@media(max-width:600px){.quality-track:before,.snow-section-title:before,.track-section-title:before,.trackTypeIcon{width:52px!important;height:52px!important;flex-basis:52px!important}.quality-track,.snow-section-title,.track-section-title{gap:10px!important}}
+/* Section graphics are inserted as real DOM elements. This avoids pseudo-element/background-image conflicts in the original form CSS. */
+.vestope-section-icon{width:52px!important;height:52px!important;flex:0 0 52px!important;border-radius:14px!important;background:#eaf3ff!important;box-shadow:0 6px 14px rgba(62,111,181,.14)!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;overflow:hidden!important}
+.vestope-section-icon.groomer img{width:42px!important;height:auto!important;display:block!important;object-fit:contain!important}
+.vestope-section-icon.snow{font-size:35px!important;line-height:1!important;color:#0b63ce!important;font-family:system-ui,sans-serif!important}
+.vestope-section-row{display:flex!important;align-items:center!important;gap:12px!important}
+@media(max-width:600px){.vestope-section-icon{width:52px!important;height:52px!important;flex-basis:52px!important}.vestope-section-row{gap:10px!important}}
 </style>`;
 const UI_SCRIPT=`<script>
 (()=>{
+  const addIcon=(heading,type)=>{
+    if(!heading || heading.querySelector('[data-vestope-section-icon]')) return;
+    const icon=document.createElement('span');
+    icon.dataset.vestopeSectionIcon='1';
+    icon.className='vestope-section-icon '+type;
+    if(type==='groomer'){
+      const img=document.createElement('img');
+      img.src='./groomer.svg';
+      img.alt='';
+      img.setAttribute('aria-hidden','true');
+      icon.appendChild(img);
+    }else{
+      icon.textContent='❄';
+      icon.setAttribute('aria-hidden','true');
+    }
+    heading.classList.add('vestope-section-row');
+    heading.insertBefore(icon,heading.firstChild);
+  };
   const markSections=()=>{
-    document.querySelectorAll("h3,.quality-title,.sectionHeader").forEach(el=>{
-      const t=(el.textContent||"").trim();
-      if(t.includes("Jaká je podle tebe stopa?")) el.classList.add("quality-track");
-      if(t.includes("Sněhové podmínky")) el.classList.add("snow-section-title");
-      if(t.includes("Druh stopy")) el.classList.add("track-section-title");
+    document.querySelectorAll('h3,.quality-title,.sectionHeader').forEach(el=>{
+      const t=(el.textContent||'').trim();
+      if(t.includes('Jaká je podle tebe stopa?')) addIcon(el,'groomer');
+      if(t.includes('Sněhové podmínky')) addIcon(el,'snow');
     });
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',markSections); else markSections();
