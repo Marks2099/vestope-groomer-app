@@ -1,4 +1,4 @@
-const CACHE="vestope-groomer-phase-a-v17";
+const CACHE="vestope-groomer-phase-a-v18";
 const ASSETS=[
   "./",
   "./index.html",
@@ -14,7 +14,7 @@ const injectEnhancements=async response=>{
   const headers=new Headers(response.headers);
   headers.delete("content-length");
   let html=await response.text();
-  const script='<script src="./ride-enhancements.js?v=17"></script>';
+  const script='<script src="./ride-enhancements.js?v=18"></script>';
   if(!html.includes("ride-enhancements.js")){
     html=html.includes("</body>")?html.replace("</body>",script+"</body>"):html+script;
   }
