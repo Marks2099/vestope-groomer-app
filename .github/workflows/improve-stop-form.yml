@@ -1,0 +1,49 @@
+name: Improve stop form layout
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Improve mobile form
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          old_css = '.quality-title{font-size:13px;font-weight:800;color:#34445a;margin:16px 0 8px}.quality-grid{display:grid;grid-template-columns:1fr;gap:7px}.quality-option{position:relative;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #d8e1eb;border-radius:12px;background:#fff;cursor:pointer}.quality-option input{position:absolute;opacity:0;pointer-events:none}.quality-dot{width:18px;height:18px;border-radius:50%;border:3px solid #d7dee7;flex:0 0 18px}'
+          new_css = '.quality-title{font-size:13px;font-weight:800;color:#34445a;margin:16px 0 8px}.quality-grid{display:grid;grid-template-columns:1fr;gap:6px}.quality-option{position:relative;display:flex;align-items:center;gap:10px;padding:9px 12px;margin:0;border:1px solid #d8e1eb;border-radius:12px;background:#fff;cursor:pointer}.quality-option input{position:absolute;opacity:0;pointer-events:none}.quality-dot{width:18px;height:18px;border-radius:50%;border:3px solid #d7dee7;flex:0 0 18px}'
+          if old_css not in s: raise SystemExit('quality CSS not found')
+          s = s.replace(old_css, new_css, 1)
+
+          old_check = '.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check-option{display:flex;align-items:center;gap:9px;padding:10px 11px;border:1px solid #d8e1eb;border-radius:12px;background:#fff;cursor:pointer;font-size:14px;color:#34445a}.check-option input{width:18px;height:18px;accent-color:#0b63ce;padding:0;border:0;flex:0 0 18px}.formSection{margin-top:16px}.formSection:first-of-type{margin-top:8px}.sectionHint{font-size:12px;color:#7a8798;margin:-2px 0 8px}'
+          new_check = '.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.check-option{display:flex;align-items:center;gap:9px;padding:8px 11px;margin:0;border:1px solid #d8e1eb;border-radius:12px;background:#fff;cursor:pointer;font-size:14px;color:#34445a;line-height:1.25;min-height:46px}.check-option input{width:18px;height:18px;accent-color:#0b63ce;padding:0;border:0;flex:0 0 18px}.formSection{margin-top:16px}.formSection:first-of-type{margin-top:8px}.sectionHint{font-size:12px;color:#7a8798;margin:-2px 0 8px}.formSection h3{margin:0 0 8px;font-size:17px;line-height:1.2;color:#142b4b}.sectionHeader{display:flex;align-items:center;gap:10px;margin:0 0 10px}.sectionHeader h3{margin:0}.trackTypeIcon{width:38px;height:38px;border-radius:11px;background:#78a8ee;display:flex;align-items:center;justify-content:center;flex:0 0 38px;box-shadow:0 5px 12px rgba(62,111,181,.16)}.trackTypeIcon svg{width:29px;height:29px;display:block}.modal{position:fixed;inset:0;z-index:20;background:rgba(17,35,54,.42);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px calc(24px + env(safe-area-inset-bottom));}.modalCard{width:100%;max-width:460px;max-height:none;min-height:0;overflow:visible;margin:auto 0;background:#fff;border-radius:24px;padding:24px 24px calc(24px + env(safe-area-inset-bottom));box-shadow:0 25px 70px rgba(15,35,55,.25)}.formActions{display:flex;gap:10px;margin-top:18px;padding-top:6px;position:sticky;bottom:0;background:linear-gradient(to bottom,rgba(255,255,255,0),#fff 16px);z-index:2}.formActions button{flex:1;padding:13px;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer}.cancel{border:1px solid #d9e1eb;background:#fff;color:#34445a}.save{border:0;background:#0b63ce;color:#fff}'
+          if old_check not in s: raise SystemExit('check/modal CSS not found')
+          s = s.replace(old_check, new_check, 1)
+
+          old_section = '<div class="formSection"><h3>Druh stopy</h3><div class="sectionHint">Vyber, co je dnes upravené.</div><div class="check-grid"><label class="check-option"><input type="checkbox" name="trackType" value="classic">Klasika</label><label class="check-option"><input type="checkbox" name="trackType" value="skate">Skate (bruslení)</label></div></div>'
+          new_section = '<div class="formSection"><div class="sectionHeader"><div class="trackTypeIcon" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="13" r="4" fill="white"/><path d="M20 19v14m0-10 10 6m-10 0-7 11m7-7 9 12M45 13a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" fill="white"/><path d="M45 22v13m0-8 9 5m-9 0-8 11m8-6 9 11M7 48h22M36 48h21" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Druh stopy</h3></div><div class="sectionHint">Vyber, co je dnes upravené.</div><div class="check-grid"><label class="check-option"><input type="checkbox" name="trackType" value="classic">Klasika</label><label class="check-option"><input type="checkbox" name="trackType" value="skate">Skate (bruslení)</label></div></div>'
+          if old_section not in s: raise SystemExit('track type section not found')
+          s = s.replace(old_section, new_section, 1)
+
+          mobile = '@media(max-width:600px){.check-grid{grid-template-columns:1fr}.quality-option,.check-option{padding:11px 12px}}'
+          mobile_new = '@media(max-width:600px){.check-grid{grid-template-columns:1fr;gap:6px}.quality-option,.check-option{padding:9px 11px}.modal{padding:10px 10px calc(18px + env(safe-area-inset-bottom))}.modalCard{padding:20px 16px calc(20px + env(safe-area-inset-bottom));border-radius:22px}.formActions{gap:8px}.formActions button{padding:12px 10px}.trackTypeIcon{width:36px;height:36px;flex-basis:36px}}'
+          if mobile not in s: raise SystemExit('mobile CSS not found')
+          s = s.replace(mobile, mobile_new, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Improve mobile stop form and track type graphics'
+          git push
