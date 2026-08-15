@@ -1,4 +1,4 @@
-const CACHE="vestope-groomer-phase1-v1";
+const CACHE="vestope-groomer-phase1-v2";
 const ASSETS=["./","./index.html","./styles.css","./app.js","./ride-engine.js","./manifest.webmanifest","./logo_vestope.cz.png","./vestope-groomer-background.webp","./groomer.svg"];
 self.addEventListener("install",event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith("vestope-groomer-phase")&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
