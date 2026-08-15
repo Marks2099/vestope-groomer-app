@@ -1,51 +1,18 @@
 name: Add form section graphics
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   update:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add section graphics
+      - name: Verify source already contains form graphics
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p = Path('index.html')
-          s = p.read_text(encoding='utf-8')
-
-          ski = '''<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="22" cy="12" r="3" fill="white" stroke="none"/><path d="M22 17v15l-8 12m8-12 9 7m-9-4 10 13M42 12a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/><path d="M42 19v14l-7 12m7-12 9 6m-9-3 9 13M7 50h20m7 0h23"/></g></svg>'''
-          snow_b64 = 'PHN2ZyB2aWV3Qm94PSIwIDAgNjQgNjQiIGFyaWEtaGlkZGVuPSJ0cnVlIj48ZyBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIzLjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+PHBhdGggZD0iTTMyIDh2NDhNMTEgMjBsNDIgMjRNMTEgNDRsNDItMjQiLz48cGF0aCBkPSJtMzIgOC01IDdtNS03IDUgN20wIDM0LTUgN201LTcgNSA3TTExIDIwbDkgMW0tOS0xIDQgOG0zOCAyNC05LTFtOSAxLTQtOE0xMSA0NGw5LTFtLTkgMSA0LThtMzgtMjQtOSAxbTktMS00IDgiLz48L2c+PC9zdmc+'
-          groomer_b64 = 'PHN2ZyB2aWV3Qm94PSIwIDAgOTYgNjQiIGFyaWEtaGlkZGVuPSJ0cnVlIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTggNDdoNzhsNS03LTktMkg1NVYxN0gzNmwtNyAxMEgyMGwtNCAxMkg5bC01IDhaIiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iLjE4Ii8+PHBhdGggZD0iTTMwIDI3VjEyaDIzdjI2SDI3bTI2LTIwaDEwbDggOEg1M00zNiAxMmgxN00xNiA0MGg3MiIvPjxwYXRoIGQ9Ik0xMyA0OGM4IDYgMTggNiAyNiAwbTggMGM4IDYgMTggNiAyNiAwIi8+PGNpcmNsZSBjeD0iMjkiIGN5PSI0OCIgcj0iNyIvPjxjaXJjbGUgY3g9IjQ4IiBjeT0iNDgiIHI9IjciLz48Y2lyY2xlIGN4PSI2NyIgY3k9IjQ4IiByPSI3Ii8+PC9nPjwvc3ZnPg=='
-
-          # Replace the existing track-type icon with the supplied skier-style direction.
-          s = re.sub(r'<div class="trackTypeIcon" aria-hidden="true">.*?</div>', '<div class="trackTypeIcon" aria-hidden="true">'+ski+'</div>', s, count=1, flags=re.S)
-
-          # Give the two quality sections distinct visual identities.
-          s = s.replace('<div class="quality-title">Jaká je stopa?</div>', '<div class="quality-title quality-track">Jaká je podle tebe stopa?</div>')
-          s = s.replace('<div class="quality-title">Sněhové podmínky</div>', '<div class="quality-title quality-snow">Sněhové podmínky</div>')
-
-          icon_css = f'''
-          .quality-title{{display:flex;align-items:center;gap:10px}}
-          .quality-title:before{{content:"";width:38px;height:38px;flex:0 0 38px;border-radius:11px;display:block;background-position:center;background-repeat:no-repeat;background-size:28px 28px;box-shadow:0 5px 12px rgba(62,111,181,.16)}}
-          .quality-track:before{{background-color:#78a8ee;background-image:url(data:image/svg+xml;base64,{groomer_b64})}}
-          .quality-snow:before{{background-color:#eaf5ff;background-image:url(data:image/svg+xml;base64,{snow_b64});color:#4d91d9}}
-          .quality-title{{font-size:17px!important;line-height:1.2}}
-          .quality-track + .quality-grid{{margin-top:2px}}
-          '''
-          s = s.replace('</style>', icon_css + '</style>', 1)
-
-          p.write_text(s, encoding='utf-8')
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html
-          git commit -m 'Add skier, groomer and snowflake graphics'
-          git push
+          grep -q 'trackTypeIcon' index.html
+          grep -q 'quality-track' index.html
+          grep -q 'quality-snow' index.html
