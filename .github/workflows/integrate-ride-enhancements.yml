@@ -27,11 +27,10 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import json
           import re
 
-          # 1) Load the enhancement bundle directly from index.html.
-          # Do not rely on the service worker to inject it: the first page load
-          # must already contain the new functionality.
+          # Always load the enhancement bundle directly from index.html.
           p = Path('index.html')
           s = p.read_text()
           scripts = '<script src="./ride-enhancements.js?v=20"></script><script src="./gps-guard.js?v=20"></script>'
@@ -41,13 +40,11 @@ jobs:
               s = s.replace('</body>', scripts + '</body>', 1)
           p.write_text(s)
 
-          # 2) Patch the enhancement bundle with the final visual treatment:
-          #    - snow groomer icon for track quality
-          #    - snowflake icon for snow conditions
-          #    - preserve the approved two-skier track-type icon
-          #    - keep the form/actions usable on mobile
           r = Path('ride-enhancements.js')
           js = r.read_text()
+
+          # Remove a previous malformed/raw CSS injection if one exists.
+          js = re.sub(r'\n<style id="ride-final-form-fix">.*?</style>\n', '\n', js, count=1, flags=re.S)
 
           new_fix = r'''const fixFormIcons=()=>{
             const ROLBA='<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 42h45l-5-13H30V15h13v14"/><path d="M30 29H20v13"/><path d="M10 42l-6 7h55"/><path d="M16 49a6 6 0 0 0 12 0m12 0a6 6 0 0 0 12 0"/><path fill="white" stroke="none" d="M30 15h13l-2-5H32z"/></g></svg>';
@@ -72,13 +69,11 @@ jobs:
           if n != 1:
               raise SystemExit('fixFormIcons function not found')
 
-          # Override the older mobile CSS that collapsed the snow-condition grid
-          # to one column and made the form action row non-sticky.
-          css_patch = r'''<style id="ride-final-form-fix">
+          css_html = r'''<style id="ride-final-form-fix">
           .qualitySectionIcon,.snowSectionIcon{width:38px;height:38px;flex:0 0 38px;border-radius:11px;background:#78a8ee;display:flex;align-items:center;justify-content:center;box-shadow:0 5px 12px rgba(62,111,181,.16)}
           .qualitySectionIcon svg,.snowSectionIcon svg{width:28px;height:28px;display:block}
           .quality-title{display:flex!important;align-items:center;gap:10px}
-          .quality-title .qualitySectionIcon{order:0}.quality-title{font-size:17px!important;font-weight:800!important;color:#142b4b!important}
+          .quality-title{font-size:17px!important;font-weight:800!important;color:#142b4b!important}
           .formSection:has(>h3)>.snowSectionIcon{margin-bottom:10px}
           .formSection:has(>h3){display:grid;grid-template-columns:38px 1fr}.formSection:has(>h3)>.snowSectionIcon{grid-column:1;grid-row:1}.formSection:has(>h3)>h3{grid-column:2;grid-row:1;margin:0!important;align-self:center}.formSection:has(>h3)>.sectionHint,.formSection:has(>h3)>.check-grid{grid-column:1/-1}
           .modal{align-items:flex-start!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;padding:12px 12px calc(24px + env(safe-area-inset-bottom))!important}
@@ -86,18 +81,19 @@ jobs:
           .formActions{position:sticky!important;bottom:0!important;padding:10px 0 4px!important;margin-top:18px!important;background:linear-gradient(to bottom,rgba(255,255,255,0),#fff 18px)!important;z-index:5!important}
           @media(max-width:600px){.check-grid{grid-template-columns:1fr 1fr!important;gap:6px!important}.modalCard{padding:20px 16px calc(20px + env(safe-area-inset-bottom))!important}.formActions{gap:8px!important}.formActions button{padding:12px 10px!important}.qualitySectionIcon,.snowSectionIcon{width:36px;height:36px;flex-basis:36px}.qualitySectionIcon svg,.snowSectionIcon svg{width:27px;height:27px}}
           </style>'''
-          marker='  const init=()=>{'
           if 'ride-final-form-fix' not in js:
+              marker='  const init=()=>{'
               if marker not in js:
                   raise SystemExit('init marker not found')
-              js=js.replace(marker, css_patch+'\n  '+marker, 1)
+              final_css='  const FINAL_CSS='+json.dumps(css_html)+';\n'
+              js=js.replace(marker, final_css+marker, 1)
+          js=js.replace('s.innerHTML=CSS;document.head.appendChild(s);','s.innerHTML=CSS+FINAL_CSS;document.head.appendChild(s);',1)
 
           # Subtract paused time from the final daily driving-time statistic.
           js=js.replace('ms+=b-a;count++','ms+=Math.max(0,(b-a)-Number(r?.pausedMs||0));count++',1)
           r.write_text(js)
 
-          # 3) Bump the service-worker cache generation as a second layer of
-          # cache invalidation. Direct script loading above is the primary path.
+          # Bump service-worker cache generation as a second cache invalidation layer.
           sw=Path('sw.js')
           w=sw.read_text().replace('vestope-groomer-phase-a-v19','vestope-groomer-phase-a-v20').replace('ride-enhancements.js?v=19','ride-enhancements.js?v=20').replace('gps-guard.js?v=19','gps-guard.js?v=20')
           sw.write_text(w)
@@ -110,6 +106,7 @@ jobs:
           grep -q 'snowSectionIcon' ride-enhancements.js
           grep -q 'daily-stats' ride-enhancements.js
           grep -q 'pausedMs' ride-enhancements.js
+          node --check ride-enhancements.js
 
       - name: Commit integrated ride app
         run: |
