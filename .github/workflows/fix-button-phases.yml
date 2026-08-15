@@ -1,0 +1,44 @@
+name: Fix groomer button phases
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Implement START JEDU STOP phases
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old_css = '.start{width:190px;height:190px;border-radius:50%;border:0;background:#20a84b;color:#fff;font-size:24px;font-weight:900;margin:28px auto 16px;box-shadow:0 14px 35px rgba(32,168,75,.25);cursor:pointer;display:block;transition:transform .12s,background .15s,box-shadow .15s}.start:hover{transform:translateY(-1px)}.start:disabled{opacity:.75;cursor:default}.start.running{background:#20a84b;box-shadow:0 14px 35px rgba(32,168,75,.28)}'
+          new_css = '.start{width:190px;height:190px;border-radius:50%;border:0;background:#20a84b;color:#fff;font-size:24px;font-weight:900;margin:28px auto 16px;box-shadow:0 14px 35px rgba(32,168,75,.25);cursor:pointer;display:block;transition:transform .12s,background .15s,box-shadow .15s}.start:hover{transform:translateY(-1px)}.start:disabled{opacity:.75;cursor:default}.start.running{background:#f2c21a;box-shadow:0 14px 35px rgba(242,194,26,.28)}.start.driving{background:#f2c21a;box-shadow:0 14px 35px rgba(242,194,26,.28)}.start.stopping{background:#d83b3b;box-shadow:0 14px 35px rgba(216,59,59,.28);transform:scale(.98)}'
+          if old_css not in s: raise SystemExit('START CSS block not found')
+          s = s.replace(old_css, new_css, 1)
+          old_start = 'button.disabled=false;button.dataset.gpsReady="true";button.textContent="STOP";animation.classList.add("active");const nearest=await detectNearestStart(position,currentProfile?.groomer?.default_area_id);currentDraft.startName=nearest?.name||null;renderLocation(document.getElementById("location"),position,nearest);status.className="status running";status.textContent="Jedu s tebou. GPS běží."'
+          new_start = 'button.disabled=false;button.dataset.gpsReady="true";button.textContent="JEDU";button.classList.remove("stopping","running");button.classList.add("driving");animation.classList.add("active");const nearest=await detectNearestStart(position,currentProfile?.groomer?.default_area_id);currentDraft.startName=nearest?.name||null;renderLocation(document.getElementById("location"),position,nearest);status.className="status running";status.textContent="Jedu s tebou. GPS běží."'
+          if old_start not in s: raise SystemExit('START success block not found')
+          s = s.replace(old_start, new_start, 1)
+          old_stop = 'function stopAndOpenForm(){stopTracking();const button=document.getElementById("start");if(button){button.disabled=true;button.textContent="STOP"}setTimeout(()=>{if(button)button.disabled=false;openStopForm()},350)}'
+          new_stop = 'function stopAndOpenForm(){stopTracking();const button=document.getElementById("start");const animation=document.getElementById("trackAnimation");if(button){button.disabled=true;button.textContent="STOP";button.classList.remove("driving","running");button.classList.add("stopping")}if(animation)animation.classList.remove("active");setTimeout(()=>{if(button){button.disabled=false;button.classList.remove("stopping")}openStopForm()},500)}'
+          if old_stop not in s: raise SystemExit('STOP function not found')
+          s = s.replace(old_stop, new_stop, 1)
+          old_error = 'button.disabled=true;button.dataset.gpsReady="false";button.textContent="START";status.className="status";status.style.color="#b3261e";'
+          new_error = 'button.disabled=true;button.dataset.gpsReady="false";button.textContent="START";button.classList.remove("driving","stopping","running");status.className="status";status.style.color="#b3261e";'
+          if old_error not in s: raise SystemExit('GPS error reset block not found')
+          s = s.replace(old_error, new_error, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Implement START JEDU STOP button phases'
+          git push
