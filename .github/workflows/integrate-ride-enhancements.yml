@@ -14,34 +14,107 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Verify ride enhancement source
         run: |
           test -s ride-enhancements.js
           grep -q 'ride-controls' ride-enhancements.js
           grep -q 'pauseRide' ride-enhancements.js
           grep -q 'addRidePhoto' ride-enhancements.js
-      - name: Fix GPS start hang
+          grep -q 'daily-stats' ride-enhancements.js
+
+      - name: Activate ride enhancements and final form styling
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
+
+          # 1) Load the enhancement bundle directly from index.html.
+          # Do not rely on the service worker to inject it: the first page load
+          # must already contain the new functionality.
           p = Path('index.html')
           s = p.read_text()
-          old = '''async function detectNearestStart(position,areaId){if(!areaId)return null;const{data,error}=await client.from("ski_locations").select("name,latitude,longitude,location_types").eq("area_id",areaId).eq("active",true);if(error||!data?.length)return null;const starts=data.filter(x=>Array.isArray(x.location_types)&&x.location_types.includes("START")&&Number.isFinite(x.latitude)&&Number.isFinite(x.longitude));if(!starts.length)return null;let nearest=null,best=Infinity;for(const x of starts){const d=distanceM(position.coords.latitude,position.coords.longitude,x.latitude,x.longitude);if(d<best){best=d;nearest={...x,distance:Math.round(d)}}}return nearest&&nearest.distance<=1000?nearest:null}'''
-          new = '''async function detectNearestStart(position,areaId){if(!areaId)return null;try{const query=client.from("ski_locations").select("name,latitude,longitude,location_types").eq("area_id",areaId).eq("active",true);const timeout=new Promise(resolve=>setTimeout(()=>resolve({data:null,error:new Error("timeout")}),4000));const{data,error}=await Promise.race([query,timeout]);if(error||!data?.length)return null;const starts=data.filter(x=>Array.isArray(x.location_types)&&x.location_types.includes("START")&&Number.isFinite(x.latitude)&&Number.isFinite(x.longitude));if(!starts.length)return null;let nearest=null,best=Infinity;for(const x of starts){const d=distanceM(position.coords.latitude,position.coords.longitude,x.latitude,x.longitude);if(d<best){best=d;nearest={...x,distance:Math.round(d)}}}return nearest&&nearest.distance<=1000?nearest:null}catch{return null}}'''
-          if old not in s:
-              raise SystemExit('detectNearestStart source not found')
-          s = s.replace(old, new, 1)
-          old2 = '''navigator.geolocation.getCurrentPosition(async position=>{currentDraft={id:crypto.randomUUID(),startedAt:new Date().toISOString(),synced:false,points:[],startLat:position.coords.latitude,startLon:position.coords.longitude,startAccuracy:position.coords.accuracy,startName:null};saveGpsPoint(currentDraft,position);localStorage.setItem("vestope:groomer:phaseA:draft",JSON.stringify(currentDraft));startGpsWatch(currentDraft);button.disabled=false;button.dataset.gpsReady="true";button.textContent="JEDU";button.classList.remove("stopping","running");button.classList.add("driving");animation.classList.add("active");const nearest=await detectNearestStart(position,currentProfile?.groomer?.default_area_id);currentDraft.startName=nearest?.name||null;renderLocation(document.getElementById("location"),position,nearest);status.className="status running";status.textContent="Jedu s tebou. GPS běží."},error=>{'''
-          new2 = '''navigator.geolocation.getCurrentPosition(position=>{currentDraft={id:crypto.randomUUID(),startedAt:new Date().toISOString(),synced:false,points:[],startLat:position.coords.latitude,startLon:position.coords.longitude,startAccuracy:position.coords.accuracy,startName:null};saveGpsPoint(currentDraft,position);localStorage.setItem("vestope:groomer:phaseA:draft",JSON.stringify(currentDraft));startGpsWatch(currentDraft);button.disabled=false;button.dataset.gpsReady="true";button.textContent="JEDU";button.classList.remove("stopping","running");button.classList.add("driving");animation.classList.add("active");status.className="status running";status.textContent="Jedu s tebou. GPS běží.";detectNearestStart(position,currentProfile?.groomer?.default_area_id).then(nearest=>{if(!currentDraft)return;currentDraft.startName=nearest?.name||null;renderLocation(document.getElementById("location"),position,nearest)}).catch(()=>{})},error=>{'''
-          if old2 not in s:
-              raise SystemExit('startTracking source not found')
-          s = s.replace(old2, new2, 1)
+          scripts = '<script src="./ride-enhancements.js?v=20"></script><script src="./gps-guard.js?v=20"></script>'
+          if './ride-enhancements.js?v=20' not in s:
+              if '</body>' not in s:
+                  raise SystemExit('index.html has no closing body tag')
+              s = s.replace('</body>', scripts + '</body>', 1)
           p.write_text(s)
+
+          # 2) Patch the enhancement bundle with the final visual treatment:
+          #    - snow groomer icon for track quality
+          #    - snowflake icon for snow conditions
+          #    - preserve the approved two-skier track-type icon
+          #    - keep the form/actions usable on mobile
+          r = Path('ride-enhancements.js')
+          js = r.read_text()
+
+          new_fix = r'''const fixFormIcons=()=>{
+            const ROLBA='<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 42h45l-5-13H30V15h13v14"/><path d="M30 29H20v13"/><path d="M10 42l-6 7h55"/><path d="M16 49a6 6 0 0 0 12 0m12 0a6 6 0 0 0 12 0"/><path fill="white" stroke="none" d="M30 15h13l-2-5H32z"/></g></svg>';
+            const SNOW='<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M32 7v50M10 19l44 26M10 45l44-26"/><path d="M32 7l-5 7m5-7 5 7m-5 43-5-7m5 7 5-7M10 19l9 1m-9-1 4 8m40-8-9 1m9-1-4 8M10 45l9-1m-9 1 4-8m40 8-9-1m9 1-4-8"/></g></svg>';
+            const TRACK='<svg viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="22" cy="12" r="3" fill="white" stroke="none"/><path d="M22 17v15l-8 12m8-12 9 7m-9-4 10 13M42 12a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/><path d="M42 19v14l-7 12m7-12 9 6m-9-3 9 13M7 50h20m7 0h23"/></g></svg>';
+            const addIcon=(el,cls,svg)=>{if(!el||el.querySelector('.'+cls))return;const i=document.createElement('div');i.className=cls;i.setAttribute('aria-hidden','true');i.innerHTML=svg;el.insertBefore(i,el.firstChild)};
+            document.querySelectorAll('.formSection').forEach(section=>{
+              const quality=section.querySelector('.quality-title');
+              if(quality&&quality.textContent.trim()==='Jaká je podle tebe stopa?')addIcon(quality,'qualitySectionIcon',ROLBA);
+              const h=section.querySelector(':scope > h3');
+              if(h&&h.textContent.trim()==='Sněhové podmínky')addIcon(h,'snowSectionIcon',SNOW);
+              const header=section.querySelector('.sectionHeader');
+              if(header&&header.querySelector('h3')?.textContent.trim()==='Druh stopy'){
+                let i=header.querySelector('.trackTypeIcon');
+                if(!i){i=document.createElement('div');i.className='trackTypeIcon';header.insertBefore(i,header.firstChild)}
+                i.innerHTML=TRACK;
+                i.style.background='#78a8ee';
+              }
+            });
+          }'''
+          js, n = re.subn(r'const fixFormIcons=\(\)=>\{.*?\};\n  const init=', new_fix + '\n  const init=', js, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('fixFormIcons function not found')
+
+          # Override the older mobile CSS that collapsed the snow-condition grid
+          # to one column and made the form action row non-sticky.
+          css_patch = r'''<style id="ride-final-form-fix">
+          .qualitySectionIcon,.snowSectionIcon{width:38px;height:38px;flex:0 0 38px;border-radius:11px;background:#78a8ee;display:flex;align-items:center;justify-content:center;box-shadow:0 5px 12px rgba(62,111,181,.16)}
+          .qualitySectionIcon svg,.snowSectionIcon svg{width:28px;height:28px;display:block}
+          .quality-title{display:flex!important;align-items:center;gap:10px}
+          .quality-title .qualitySectionIcon{order:0}.quality-title{font-size:17px!important;font-weight:800!important;color:#142b4b!important}
+          .formSection:has(>h3)>.snowSectionIcon{margin-bottom:10px}
+          .formSection:has(>h3){display:grid;grid-template-columns:38px 1fr}.formSection:has(>h3)>.snowSectionIcon{grid-column:1;grid-row:1}.formSection:has(>h3)>h3{grid-column:2;grid-row:1;margin:0!important;align-self:center}.formSection:has(>h3)>.sectionHint,.formSection:has(>h3)>.check-grid{grid-column:1/-1}
+          .modal{align-items:flex-start!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;padding:12px 12px calc(24px + env(safe-area-inset-bottom))!important}
+          .modalCard{max-height:none!important;overflow:visible!important;margin:auto 0!important;padding:24px 24px calc(24px + env(safe-area-inset-bottom))!important}
+          .formActions{position:sticky!important;bottom:0!important;padding:10px 0 4px!important;margin-top:18px!important;background:linear-gradient(to bottom,rgba(255,255,255,0),#fff 18px)!important;z-index:5!important}
+          @media(max-width:600px){.check-grid{grid-template-columns:1fr 1fr!important;gap:6px!important}.modalCard{padding:20px 16px calc(20px + env(safe-area-inset-bottom))!important}.formActions{gap:8px!important}.formActions button{padding:12px 10px!important}.qualitySectionIcon,.snowSectionIcon{width:36px;height:36px;flex-basis:36px}.qualitySectionIcon svg,.snowSectionIcon svg{width:27px;height:27px}}
+          </style>'''
+          marker='  const init=()=>{'
+          if 'ride-final-form-fix' not in js:
+              if marker not in js:
+                  raise SystemExit('init marker not found')
+              js=js.replace(marker, css_patch+'\n  '+marker, 1)
+
+          # Subtract paused time from the final daily driving-time statistic.
+          js=js.replace('ms+=b-a;count++','ms+=Math.max(0,(b-a)-Number(r?.pausedMs||0));count++',1)
+          r.write_text(js)
+
+          # 3) Bump the service-worker cache generation as a second layer of
+          # cache invalidation. Direct script loading above is the primary path.
+          sw=Path('sw.js')
+          w=sw.read_text().replace('vestope-groomer-phase-a-v19','vestope-groomer-phase-a-v20').replace('ride-enhancements.js?v=19','ride-enhancements.js?v=20').replace('gps-guard.js?v=19','gps-guard.js?v=20')
+          sw.write_text(w)
           PY
-      - name: Commit GPS fix
+
+      - name: Verify app contains the active enhancements
+        run: |
+          grep -q 'ride-enhancements.js?v=20' index.html
+          grep -q 'qualitySectionIcon' ride-enhancements.js
+          grep -q 'snowSectionIcon' ride-enhancements.js
+          grep -q 'daily-stats' ride-enhancements.js
+          grep -q 'pausedMs' ride-enhancements.js
+
+      - name: Commit integrated ride app
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git diff --cached --quiet || git commit -m "fix: GPS start hang"
+          git add index.html ride-enhancements.js sw.js
+          git diff --cached --quiet || git commit -m "fix: activate ride enhancements"
           git push
