@@ -1,0 +1,33 @@
+name: Adjust location copy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  adjust:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Adjust location UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '''el.innerHTML=`<div class="gps-state"><span class="gps-icon ok">✓</span><span>Jsi u výchozího bodu</span></div><div class="gps-point">${escapeHtml(nearest.name)}</div><div class="gps-message">Tady můžeš vyrazit. Já už vím, kam tvoji jízdu zařadit.</div>`;'''
+          new = '''el.innerHTML=`<div class="gps-state"><span>Jsi u výchozího bodu</span></div><div class="gps-point"><span class="gps-icon ok">✓</span><span>${escapeHtml(nearest.name)}</span></div><div class="gps-message">Už jsem tě našel v tomto místě. Takže teď už to povalíme bílou stopou!</div>`;'''
+          if old not in s:
+              raise SystemExit('Expected location block not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Vtipnejsi potvrzeni vychoziho bodu' || exit 0
+          git push
