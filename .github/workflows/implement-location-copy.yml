@@ -1,0 +1,42 @@
+name: Implement location confirmation copy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update location confirmation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          pattern = re.compile(
+              r'el\.innerHTML=`<div class="gps-state">.*?</div><div class="gps-point">.*?</div><div class="gps-message">.*?</div>`;',
+              re.S,
+          )
+
+          new = '''el.innerHTML=`<div class="gps-state"><span>Jsi u výchozího bodu</span></div><div class="gps-point"><span class="gps-icon ok">✓</span><span>${escapeHtml(nearest.name)}</span></div><div class="gps-message">Už jsem tě našel v tomto místě. Takže teď už to povalíme bílou stopou!</div>`;'''
+
+          if not pattern.search(s):
+              raise SystemExit('Location confirmation block not found')
+
+          s = pattern.sub(new, s, count=1)
+          p.write_text(s, encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Uprava textu potvrzeni vychoziho bodu'
+          git push
