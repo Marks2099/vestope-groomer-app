@@ -1,4 +1,4 @@
-const CACHE="vestope-groomer-phase-a-v19";
+const CACHE="vestope-groomer-phase-a-v20";
 const ASSETS=[
   "./",
   "./index.html",
@@ -15,11 +15,11 @@ const injectEnhancements=async response=>{
   const headers=new Headers(response.headers);
   headers.delete("content-length");
   let html=await response.text();
-  const scripts='<script src="./ride-enhancements.js?v=19"></script><script src="./gps-guard.js?v=19"></script>';
+  const scripts='<script src="./ride-enhancements.js?v=20"></script><script src="./gps-guard.js?v=20"></script>';
   if(!html.includes("ride-enhancements.js")){
     html=html.includes("</body>")?html.replace("</body>",scripts+"</body>"):html+scripts;
   }else if(!html.includes("gps-guard.js")){
-    html=html.includes("</body>")?html.replace("</body>",'<script src="./gps-guard.js?v=19"></script></body>'):html+scripts;
+    html=html.includes("</body>")?html.replace("</body>",'<script src="./gps-guard.js?v=20"></script></body>'):html+scripts;
   }
   return new Response(html,{status:response.status,statusText:response.statusText,headers});
 };
