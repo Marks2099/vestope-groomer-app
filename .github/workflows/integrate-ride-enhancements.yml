@@ -1,13 +1,16 @@
 name: Integrate ride enhancements
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  verify:
+  verify-and-fix:
+    if: ${{ !startsWith(github.event.head_commit.message, 'fix: GPS') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,3 +20,28 @@ jobs:
           grep -q 'ride-controls' ride-enhancements.js
           grep -q 'pauseRide' ride-enhancements.js
           grep -q 'addRidePhoto' ride-enhancements.js
+      - name: Fix GPS start hang
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          old = '''async function detectNearestStart(position,areaId){if(!areaId)return null;const{data,error}=await client.from("ski_locations").select("name,latitude,longitude,location_types").eq("area_id",areaId).eq("active",true);if(error||!data?.length)return null;const starts=data.filter(x=>Array.isArray(x.location_types)&&x.location_types.includes("START")&&Number.isFinite(x.latitude)&&Number.isFinite(x.longitude));if(!starts.length)return null;let nearest=null,best=Infinity;for(const x of starts){const d=distanceM(position.coords.latitude,position.coords.longitude,x.latitude,x.longitude);if(d<best){best=d;nearest={...x,distance:Math.round(d)}}}return nearest&&nearest.distance<=1000?nearest:null}'''
+          new = '''async function detectNearestStart(position,areaId){if(!areaId)return null;try{const query=client.from("ski_locations").select("name,latitude,longitude,location_types").eq("area_id",areaId).eq("active",true);const timeout=new Promise(resolve=>setTimeout(()=>resolve({data:null,error:new Error("timeout")}),4000));const{data,error}=await Promise.race([query,timeout]);if(error||!data?.length)return null;const starts=data.filter(x=>Array.isArray(x.location_types)&&x.location_types.includes("START")&&Number.isFinite(x.latitude)&&Number.isFinite(x.longitude));if(!starts.length)return null;let nearest=null,best=Infinity;for(const x of starts){const d=distanceM(position.coords.latitude,position.coords.longitude,x.latitude,x.longitude);if(d<best){best=d;nearest={...x,distance:Math.round(d)}}}return nearest&&nearest.distance<=1000?nearest:null}catch{return null}}'''
+          if old not in s:
+              raise SystemExit('detectNearestStart source not found')
+          s = s.replace(old, new, 1)
+          old2 = '''navigator.geolocation.getCurrentPosition(async position=>{currentDraft={id:crypto.randomUUID(),startedAt:new Date().toISOString(),synced:false,points:[],startLat:position.coords.latitude,startLon:position.coords.longitude,startAccuracy:position.coords.accuracy,startName:null};saveGpsPoint(currentDraft,position);localStorage.setItem("vestope:groomer:phaseA:draft",JSON.stringify(currentDraft));startGpsWatch(currentDraft);button.disabled=false;button.dataset.gpsReady="true";button.textContent="JEDU";button.classList.remove("stopping","running");button.classList.add("driving");animation.classList.add("active");const nearest=await detectNearestStart(position,currentProfile?.groomer?.default_area_id);currentDraft.startName=nearest?.name||null;renderLocation(document.getElementById("location"),position,nearest);status.className="status running";status.textContent="Jedu s tebou. GPS běží."},error=>{'''
+          new2 = '''navigator.geolocation.getCurrentPosition(position=>{currentDraft={id:crypto.randomUUID(),startedAt:new Date().toISOString(),synced:false,points:[],startLat:position.coords.latitude,startLon:position.coords.longitude,startAccuracy:position.coords.accuracy,startName:null};saveGpsPoint(currentDraft,position);localStorage.setItem("vestope:groomer:phaseA:draft",JSON.stringify(currentDraft));startGpsWatch(currentDraft);button.disabled=false;button.dataset.gpsReady="true";button.textContent="JEDU";button.classList.remove("stopping","running");button.classList.add("driving");animation.classList.add("active");status.className="status running";status.textContent="Jedu s tebou. GPS běží.";detectNearestStart(position,currentProfile?.groomer?.default_area_id).then(nearest=>{if(!currentDraft)return;currentDraft.startName=nearest?.name||null;renderLocation(document.getElementById("location"),position,nearest)}).catch(()=>{})},error=>{'''
+          if old2 not in s:
+              raise SystemExit('startTracking source not found')
+          s = s.replace(old2, new2, 1)
+          p.write_text(s)
+          PY
+      - name: Commit GPS fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "fix: GPS start hang"
+          git push
